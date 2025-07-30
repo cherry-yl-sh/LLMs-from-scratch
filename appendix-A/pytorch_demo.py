@@ -32,3 +32,16 @@ beforeReshape = torch.arange(6)
 print("beforeReshape" ,beforeReshape)
 afterReshape = beforeReshape.reshape((3, 2))
 print("afterReshape",afterReshape)
+
+a = torch.arange(3).reshape(3, 1)
+print("a " ,a)
+b = torch.arange(2).reshape(1, 2)
+print("b ", b)
+combine = a + b
+print("a + b  combine",combine)
+
+print(combine[-1])
+print(combine[1:2])
+
+combine[1,1] = 12111
+print(combine)
