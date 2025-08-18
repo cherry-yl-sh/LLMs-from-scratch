@@ -45,3 +45,15 @@ print(combine[1:2])
 
 combine[1,1] = 12111
 print(combine)
+
+
+tensor1d = torch.tensor([1,23])
+print("tensor1d type",tensor1d.dtype)
+tensor1dv = tensor1d.to(torch.float32)
+print("tensor1dv", tensor1dv.dtype)
+
+tensor1dv1 = torch.arange(12).reshape(3,4)
+print("tensor1dv1 ", tensor1dv1.shape)
+
+
+# print("tensor1dv1 @ ", tensor1dv1 @ tensor1dv.T)
