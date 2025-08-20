@@ -11,12 +11,11 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import Annotated, TypedDict
 from typing import Sequence
+from langchain_core.messages import SystemMessage, trim_messages
 
 api = os.environ.get("OPEN_AI_TOKEN")
 model = init_chat_model("gpt-5-mini", model_provider="openai"
                          , base_url="https://aihubmix.com/v1", api_key=api)
-
-
 class State(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     language: str
@@ -35,15 +34,30 @@ prompt_template = ChatPromptTemplate.from_messages(
 
 
 
-workflow = StateGraph(state_schema=State)
+
+#  =============== Actually Work
+
+trimmer = trim_messages(
+    max_tokens=65,
+    strategy="last",
+    token_counter=model,
+    include_system=True,
+    allow_partial=False,
+    start_on="human",
+)
+
 def call_model(state: State):
-    prompt = prompt_template.invoke(state)
+    trimmed_messages = trimmer.invoke(state["messages"])
+    prompt = prompt_template.invoke(
+        {"messages": trimmed_messages, "language": state["language"]}
+    )
     response = model.invoke(prompt)
     return {"messages": response}
 
 
 
 # Define the (single) node in the graph
+workflow = StateGraph(state_schema=State)
 workflow.add_edge(START, "model")
 workflow.add_node("model", call_model)
 app = workflow.compile(checkpointer=MemorySaver())
@@ -58,19 +72,19 @@ def chat_loop():
     print("  /quit - 退出聊天")
     print("  /help - 显示帮助")
     print()
-    
+
     language = "Chinese"  # 默认中文
     print(f"当前语言: {language}")
     print("开始聊天吧！输入您的问题...")
     print("-" * 50)
-    
+
     while True:
         try:
             user_input = input("\n👤 您: ").strip()
-            
+
             if not user_input:
                 continue
-                
+
             # 处理命令
             if user_input.startswith("/"):
                 if user_input == "/quit" or user_input == "/exit":
@@ -93,15 +107,15 @@ def chat_loop():
                 else:
                     print("❓ 未知命令，输入 /help 查看帮助")
                     continue
-            
+
             # 处理正常对话
             input_messages = [HumanMessage(user_input)]
             output = app.invoke({"messages": input_messages, "language": language}, config)
-            
+
             # 获取AI回复
             ai_response = output["messages"][-1].content
             print(f"🤖 AI: {ai_response}")
-            
+
         except KeyboardInterrupt:
             print("\n👋 再见！")
             break
