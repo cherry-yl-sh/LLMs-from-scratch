@@ -45,15 +45,31 @@ def call_model(state: State):
     prompt = prompt_template.invoke(
         {"messages": state["messages"]}
     )
-    response = model.invoke(prompt)
+    response = model_with_tools.invoke(prompt)
     return {"messages": response}
+
+def should_continue(state: State) -> str:
+    messages = state["messages"]
+    last_message = messages[-1]
+    if last_message.tool_calls:
+        return "tools"
+    return END
 
 config = {"configurable": {"thread_id": "abc123"}}
 workflow = StateGraph(state_schema=State)
-workflow.add_edge(START, "model")
+
+# Add nodes
 workflow.add_node("model", call_model)
+workflow.add_node("tools", tool_node)
+
+# Add edges
+workflow.add_edge(START, "model")
+workflow.add_conditional_edges("model", should_continue)
+workflow.add_edge("tools", "model")
+
 app = workflow.compile(checkpointer=MemorySaver())
-input_messages = "What is 2 multiplied by 3?"
-output = app.invoke({"messages": input_messages},config)
+
+input_messages = [HumanMessage("What is 2 multiplied by 3?")]
+output = app.invoke({"messages": input_messages}, config)
 ai_response = output["messages"][-1].content
 print(ai_response)
